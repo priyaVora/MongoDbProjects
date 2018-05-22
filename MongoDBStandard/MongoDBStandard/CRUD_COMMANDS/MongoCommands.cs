@@ -7,11 +7,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using MongoDBStandard.models;
+using MongoDB.Bson.Serialization;
 
 namespace MongoDBStandard.CRUD_COMMANDS
 {
     public class MongoCommands
-    {        
+    {
         const string USER_COLLECTION = "UserAccount";
         const string NOTE_COLLECTION = "Note";
         const string FILE_COLLECTION = "File";
@@ -19,81 +21,139 @@ namespace MongoDBStandard.CRUD_COMMANDS
         const string MONGO_CONNECTION_STRING = "mongodb://40.114.29.68:27017";
         const string MONGO_DATABASE = "Mongo_Study_App";
 
-        public static void DeleteFile(string guid)
+        public void DeleteFile(string guid)
         {
             IMongoCollection<BsonDocument> fileCollection = GetCollection(FILE_COLLECTION);
             FilterDefinition<BsonDocument> deleteFileFilter = Builders<BsonDocument>.Filter.Eq("GUID", guid);
             fileCollection.DeleteOne(deleteFileFilter);
 
         }
-        public static void DeleteNote(string guid)
+        public void DeleteNote(string guid)
         {
             IMongoCollection<BsonDocument> fileCollection = GetCollection(FILE_COLLECTION);
             FilterDefinition<BsonDocument> deleteNoteFilter = Builders<BsonDocument>.Filter.Eq("GUID", guid);
             fileCollection.DeleteOne(deleteNoteFilter);
         }
-        public static void CreateNote(BsonDocument note)
+        public void CreateNote(Note note)
         {
+            BsonDocument bNote = note.ToBsonDocument();
             IMongoCollection<BsonDocument> noteCollection = GetCollection(NOTE_COLLECTION);
 
-            noteCollection.InsertOne(note);
+            noteCollection.InsertOne(bNote);
         }
-        public static void UploadFile(BsonDocument file)
+        public void UploadFile(File file)
         {
+            BsonDocument bFile = file.ToBsonDocument();
             IMongoCollection<BsonDocument> fileCollection = GetCollection(FILE_COLLECTION);
 
-            fileCollection.InsertOne(file);
+            fileCollection.InsertOne(bFile);
         }
 
-        public static void CreateUser(BsonDocument User)
+        public void CreateUser(UserAccount user)
         {
+            BsonDocument bUserAccount = user.ToBsonDocument();
             IMongoCollection<BsonDocument> userCollection = GetCollection(USER_COLLECTION);
 
-            userCollection.InsertOne(User);
+            userCollection.InsertOne(bUserAccount);
         }
 
-        public static void CreateGoal(BsonDocument goal, string username)
+        public void CreateGoal(Goal goal, string username)
+
         {
+            
+            UserAccount account = GetUser(username);
             IMongoCollection<BsonDocument> userCollection = GetCollection(USER_COLLECTION);
-            var query = Query.EQ("Username", username);
-            Console.WriteLine("Query: " + query);
+            FilterDefinition<BsonDocument> getUserFilter = Builders<BsonDocument>.Filter.Eq("UserName", username);
+            BsonDocument user = userCollection.Find(getUserFilter).First();
 
-            FilterDefinition<BsonDocument> getUserFilter = Builders<BsonDocument>.Filter.Eq("Username", username);
+            
+            if((user["ListOfGoals"].AsBsonValue).BsonType == BsonType.Null)
+            {
+                Console.WriteLine("List is empty"); 
+            } else
+            {
+                var userGoalsList = user["ListOfGoals"].AsBsonArray;
+                if (userGoalsList != null)
+                {
+                    Console.WriteLine("Goals List is not null");
+                    List<Goal> listOfGoals = new List<Goal>();
 
 
-            BsonArray dataFields = new BsonArray { goal };
-            UpdateDefinition<BsonDocument> update = new BsonDocument("$set", new BsonDocument { {"ListOfGoals",dataFields }});
+                    foreach (var element in userGoalsList)
+                    {
+                        Goal g = null;
+                        var type = element["_t"].AsString;
+                        if (type == "NonRecurringGoal")
+                        {
+                            g = BsonSerializer.Deserialize<NonRecurringGoal>(element.ToJson());
+                        }
+                        else if (type == "RecurringGoal")
+                        {
+                            g = BsonSerializer.Deserialize<RecurringGoal>(element.ToJson());
+                        }
+                        listOfGoals.Add(g);
+                    }
+                    listOfGoals.Add(goal);
 
-        
-            Console.WriteLine("Usernam Filter: " + getUserFilter);
 
 
-            userCollection.UpdateOne(getUserFilter, update, new UpdateOptions { IsUpsert = true});
-          
+                    UserAccount updatedAccount = GetUser(username);
+                    userCollection.DeleteOne(updatedAccount.ToBsonDocument());
+                    updatedAccount.ListOfGoals = listOfGoals;
+                    userCollection.InsertOne(updatedAccount.ToBsonDocument());
+                }
+                else
+                {
+                    Console.WriteLine("Goals List is null.");
+                }
+            }
+            
+           
+            
+            //BsonDocument bgoal = listOfGoals.ToBsonDocument();
+            //var dataArray = new BsonArray { };
+
+            //foreach(Goal eachGoal in listOfGoals)
+            //{
+            //    dataArray.Add();
+            //}
+            //BsonArray dataFields = new BsonArray { bgoal };
+
+            //UpdateDefinition<BsonDocument> update = new BsonDocument("$set", new BsonDocument { { "ListOfGoals", dataFields } });
+           // userCollection.UpdateOne(getUserFilter, update, new UpdateOptions { IsUpsert = false });
+
         }
 
-        public void AddUserToFileDictionary(string fileGuid, string username, string permissionType)
+        public void MarkGoalAsComplete(string goalGuid, string userName)
         {
-            //adds user to the Users dictionary on File Collection
-        }
+            Console.WriteLine("Username: " + userName);
+            Console.WriteLine("Goal GUID: " + goalGuid);
+            IMongoCollection<BsonDocument> userCollection = GetCollection(USER_COLLECTION);
+            FilterDefinition<BsonDocument> getUserFilter = Builders<BsonDocument>.Filter.Eq("Username", userName);
 
-        public void RemoveUserFromFileDictionary(string fileGuid, string removingUsername)
-        {
-            //edit dictionary to remove that user from the file--- file collections
-        }
 
-        public void ChangePermissionForUser(string fileGuid, string username, string permissionType)
-        {
-            //edit the permission type for that user
-        }
+            //get listOFGoalsArrray from Database
 
-        public static void MarkGoalAsComplete(string goalGuid, string Username)
-        {
+            FilterDefinition<BsonDocument> getGoalFilter = Builders<BsonDocument>.Filter.Eq("GUID", 24);
+            var userGoal = userCollection.Find(getGoalFilter).First();
+            Console.WriteLine("Updating User Goal: " + userGoal);
+
+            //if null print goals list is empty
+            //if goals list is not empty, print each goal with \n
+
+            //then add the previous goal to dataFields and add goal after
             throw new NotImplementedException();
         }
 
+
+        public void UpdateFile(File file, string guid)
+        {
+            //replacing the file at the file location
+        }
         public static bool AuthenticateUser(string Username, string Password)
         {
+            //login
+
             throw new NotImplementedException();
         }
 
@@ -102,23 +162,83 @@ namespace MongoDBStandard.CRUD_COMMANDS
             throw new NotImplementedException();
         }
 
-        public static BsonDocument GetUser(string Username)
+        public UserAccount GetUser(string userName)
+        {
+            Console.WriteLine("Started method..." + " " + userName);
+            IMongoCollection<BsonDocument> userCollection = GetCollection(USER_COLLECTION);
+            FilterDefinition<BsonDocument> getUserFilter = Builders<BsonDocument>.Filter.Eq("UserName", userName);
+            BsonDocument user = userCollection.Find(getUserFilter).First();
+            BsonType typeOfGoal = user["ListOfGoals"].AsBsonValue.BsonType;
+
+            if(typeOfGoal == BsonType.Null)
+            {
+                Console.WriteLine("Goal is empty");
+                var userFilesList = user["ListOfFiles"].AsBsonValue;
+                var userNotesList = user["ListOfNotes"].AsBsonValue;
+                var username = user["UserName"].AsBsonValue;
+                var phoneNumber = user["PhoneNumber"].AsBsonValue;
+                var email = user["Email"].AsBsonValue;
+
+                List<File> listOfFiles = BsonSerializer.Deserialize<List<File>>(userFilesList.ToJson());
+                List<Note> listOfNotes = BsonSerializer.Deserialize<List<Note>>(userNotesList.ToJson());
+                string usernameStr = BsonSerializer.Deserialize<string>(username.ToJson());
+                string phoneNumberStr = BsonSerializer.Deserialize<string>(phoneNumber.ToJson());
+                string emailStr = BsonSerializer.Deserialize<string>(email.ToJson());
+
+                UserAccount userAccount = new UserAccount(null, listOfNotes, listOfFiles, usernameStr, phoneNumberStr, emailStr);
+
+                return userAccount;
+            } else
+            {
+                var userGoalsList = user["ListOfGoals"].AsBsonArray;
+                var userFilesList = user["ListOfFiles"].AsBsonValue;
+                var userNotesList = user["ListOfNotes"].AsBsonValue;
+                var username = user["UserName"].AsBsonValue;
+                var phoneNumber = user["PhoneNumber"].AsBsonValue;
+                var email = user["Email"].AsBsonValue;
+
+                List<Goal> listOfGoals = new List<Goal>();
+                foreach (var element in userGoalsList)
+                {
+                    Goal g = null;
+                    var type = element["_t"].AsString;
+                    if (type == "NonRecurringGoal")
+                    {
+                        g = BsonSerializer.Deserialize<NonRecurringGoal>(element.ToJson());
+                    }
+                    else if (type == "RecurringGoal")
+                    {
+                        g = BsonSerializer.Deserialize<RecurringGoal>(element.ToJson());
+                    }
+                    listOfGoals.Add(g);
+                }
+
+                List<File> listOfFiles = BsonSerializer.Deserialize<List<File>>(userFilesList.ToJson());
+                List<Note> listOfNotes = BsonSerializer.Deserialize<List<Note>>(userNotesList.ToJson());
+                string usernameStr = BsonSerializer.Deserialize<string>(username.ToJson());
+                string phoneNumberStr = BsonSerializer.Deserialize<string>(phoneNumber.ToJson());
+                string emailStr = BsonSerializer.Deserialize<string>(email.ToJson());
+
+                UserAccount userAccount = new UserAccount(listOfGoals, listOfNotes, listOfFiles, usernameStr, phoneNumberStr, emailStr);
+                return userAccount;
+            }
+            
+
+           
+        }
+
+
+        public IMongoCollection<BsonDocument> GetUpcomingGoals(string username)
         {
             throw new NotImplementedException();
         }
 
-
-        public static IMongoCollection<BsonDocument> GetUpcomingGoals(string Username)
+        public IMongoCollection<BsonDocument> GetFilePreviews(string username)
         {
             throw new NotImplementedException();
         }
 
-        public static IMongoCollection<BsonDocument> GetFilePreviews(string Username)
-        {
-            throw new NotImplementedException();
-        }
-
-        private static IMongoCollection<BsonDocument> GetCollection(string name)
+        private IMongoCollection<BsonDocument> GetCollection(string name)
         {
             MongoUrl url = new MongoUrl(MONGO_CONNECTION_STRING);
             MongoClient client = new MongoClient(url);
