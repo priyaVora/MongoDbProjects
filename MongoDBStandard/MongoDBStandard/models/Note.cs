@@ -8,9 +8,10 @@ namespace MongoDBStandard.models
 {
     public class Note
     {
-        public Note(string title = null, string content = null, string guid = null)
+        public Note(string owner, string title = null, string content = null, string guid = null)
         {
             Title = title;
+            Owner = owner;
             Content = content;
             GUID = guid;
         }
@@ -18,5 +19,6 @@ namespace MongoDBStandard.models
         public string Title { get; set; }
         public string Content { get; set; }
         public string GUID { get; set; }
+        public string Owner { get; set; }
     }
 }

@@ -38,7 +38,7 @@ namespace MongodbRND
 
             File file = new File();
             file.Users = users;
-            file.GUID = "12";
+            file.GUID = "675";
             file.Content = content;
             file.Extension = ".txt";
             file.Name = "fileOne";
@@ -52,10 +52,10 @@ namespace MongodbRND
 
             File addingFile = new File();
             addingFile.Users = users;
-            addingFile.GUID = "13";
+            addingFile.GUID = "675";
             addingFile.Content = content;
             addingFile.Extension = ".txt";
-            addingFile.Name = "fileTwo";
+            addingFile.Name = "I am the new updated file 675, Hurray!";
 
 
             List<BsonDocument> listOfGoals = new List<BsonDocument>();
@@ -171,21 +171,37 @@ namespace MongodbRND
             filesList2.Add(file2);
             UserAccount userAccount = new UserAccount(goalsList, null, null, username, phoneNumber, email);
             UserAccount userAccount2 = new UserAccount(goalsList2, null, null, "Ankita", "415-584-4324", "AnkitaGoradia78@gmail.com");
+            UserAccount userAccount3 = new UserAccount(goalsList2, null, null, "Nainesh", "415-465-4324", "NaineshGoradia87@gmail.com");
 
             users.Add(userAccount.UserName, Permission.Edit);
             users.Add(userAccount2.UserName, Permission.Owner);
+            users.Add(userAccount3.UserName,Permission.Edit);
+
+            Note note = new Note(userAccount.UserName, "I am priya!", "My Intro", "1");
+
 
             //addingFile.Users = users;
-            // cmd.GetUser("prvora89");
-           // cmd.CreateUser(userAccount);
+            //cmd.GetUser("prvora89");
+            //cmd.CreateUser(userAccount);
             //cmd.CreateUser(userAccount2);
+            //cmd.CreateUser(userAccount3);
             //cmd.CreateGoal(addingGoal, "prvora89");
             //cmd.MarkGoalAsComplete("1", "prvora89");
             //MongoCommands.GetUser(username);
+            //cmd.CreateNote(note);
+            //cmd.UploadFile(file2);
+            //cmd.GetFilePreviews("prvora89");
+            //cmd.DeleteFile("675");
+            //cmd.RemoveFilesFromUserAccounts(file, "Ankita");
+            //cmd.RemoveNotesFromUserAccounts(note, "prvora89");
+            //cmd.DeleteFile("13");
 
-            //cmd.UploadFile(file);
-            cmd.DeleteFile(file.GUID);
-           // cmd.RemoveFilesFromUserAccounts(file, "Ankita");
+            //cmd.GetFileFromCollection("13");
+            //cmd.DeleteNote(note.GUID);
+            //cmd.ShareFile("675",users);
+            //cmd.UpdateFile(addingFile);
+
+
         }
 
     }
