@@ -66,6 +66,7 @@
   <ItemGroup>
     <Compile Include="CRUD_COMMANDS\Commands.cs" />
     <Compile Include="CRUD_COMMANDS\ExtensionHelper.cs" />
+    <Compile Include="CRUD_COMMANDS\HashTableDocument.cs" />
     <Compile Include="CRUD_COMMANDS\MongoCommands.cs" />
     <Compile Include="models\Day.cs" />
     <Compile Include="models\File.cs" />

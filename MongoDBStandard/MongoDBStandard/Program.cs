@@ -20,23 +20,42 @@ namespace MongodbRND
         static void Main(string[] args)
         {
             MongoCommands cmd = new MongoCommands();
-            //Dictionary<BsonDocument, BsonDocument> users = new Dictionary<BsonDocument, BsonDocument>();
+            Dictionary<string, Permission> users = new Dictionary<string, Permission>();
 
 
-            //BsonDocument bsonDoc = users.ToBsonDocument();
-            //byte[] content = new byte[10];
+            BsonDocument bsonDoc = users.ToBsonDocument();
+            byte[] content = new byte[10];
 
 
-            //BsonDocument file = new BsonDocument
-            //{
-            //    {"Users", bsonDoc},
-            //    {"GUID", "23"},
-            //    {"Content", content.ToBsonDocumentArray()},
-            //    {"Extension", ".txt"},
-            //    {"Name", "File1"}
-            //};
+            BsonDocument bfile = new BsonDocument
+            {
+                {"Users", bsonDoc},
+                {"GUID", "23"},
+                {"Content", content.ToBsonDocumentArray()},
+                {"Extension", ".txt"},
+                {"Name", "File1"}
+            };
 
-            //MongoCommands.UploadFile(file);
+            File file = new File();
+            file.Users = users;
+            file.GUID = "12";
+            file.Content = content;
+            file.Extension = ".txt";
+            file.Name = "fileOne";
+
+            File file2 = new File();
+            file2.Users = users;
+            file2.GUID = "13";
+            file2.Content = content;
+            file2.Extension = ".txt";
+            file2.Name = "fileTwo";
+
+            File addingFile = new File();
+            addingFile.Users = users;
+            addingFile.GUID = "13";
+            addingFile.Content = content;
+            addingFile.Extension = ".txt";
+            addingFile.Name = "fileTwo";
 
 
             List<BsonDocument> listOfGoals = new List<BsonDocument>();
@@ -100,7 +119,26 @@ namespace MongodbRND
             goal.Completed = completed;
             goal.Hidden = false;
 
+            NonRecurringGoal secondGoal = new NonRecurringGoal();
+            goal.GUID = "24";
+            goal.TaskName = taskName;
+            goal.Description = description;
+            goal.Deadline = new DateTime();
+            goal.Points = points;
+            goal.Completed = completed;
+            goal.Hidden = false;
+
             RecurringGoal goal2 = new RecurringGoal();
+            goal2.GUID = "25";
+            goal2.TaskName = "second task";
+            goal2.Description = "second description";
+            goal2.Deadline = new DateTime();
+            goal2.Points = 100;
+            goal2.Completed = false;
+            goal2.Hidden = false;
+
+
+            RecurringGoal secondGoal2 = new RecurringGoal();
             goal2.GUID = "25";
             goal2.TaskName = "second task";
             goal2.Description = "second description";
@@ -123,13 +161,31 @@ namespace MongodbRND
             goalsList.Add(goal2);
             //goalsList.Add(addingGoal);
 
-            UserAccount userAccount = new UserAccount(null, null, null, username, phoneNumber, email);
+            List<Goal> goalsList2 = new List<Goal>();
+            goalsList2.Add(secondGoal);
+            goalsList2.Add(secondGoal2);
 
-            cmd.GetUser("prvora89");
-            //cmd.CreateUser(userAccount);
+            List<File> filesList = new List<File>();
+            filesList.Add(file);
+            List<File> filesList2 = new List<File>();
+            filesList2.Add(file2);
+            UserAccount userAccount = new UserAccount(goalsList, null, null, username, phoneNumber, email);
+            UserAccount userAccount2 = new UserAccount(goalsList2, null, null, "Ankita", "415-584-4324", "AnkitaGoradia78@gmail.com");
+
+            users.Add(userAccount.UserName, Permission.Edit);
+            users.Add(userAccount2.UserName, Permission.Owner);
+
+            //addingFile.Users = users;
+            // cmd.GetUser("prvora89");
+           // cmd.CreateUser(userAccount);
+            //cmd.CreateUser(userAccount2);
             //cmd.CreateGoal(addingGoal, "prvora89");
-            // cmd.MarkGoalAsComplete(25, userAccount.UserName);
+            //cmd.MarkGoalAsComplete("1", "prvora89");
             //MongoCommands.GetUser(username);
+
+            //cmd.UploadFile(file);
+            cmd.DeleteFile(file.GUID);
+           // cmd.RemoveFilesFromUserAccounts(file, "Ankita");
         }
 
     }
