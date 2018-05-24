@@ -18,15 +18,44 @@ namespace MongoDBStandard.CRUD_COMMANDS
         const string USER_COLLECTION = "UserAccount";
         const string NOTE_COLLECTION = "Note";
         const string FILE_COLLECTION = "File";
+        const string LOGIN_COLLECTION = "Login";
 
         const string MONGO_CONNECTION_STRING = "mongodb://40.114.29.68:27017";
         const string MONGO_DATABASE = "Mongo_Study_App";
 
-        public void UpdatePoints(string username, string goalGuid, string points)
+        public bool AuthenticateUser(string username, string password)
         {
-            throw new NotImplementedException();
+            IMongoCollection<BsonDocument> loginUserCollection = GetCollection(LOGIN_COLLECTION);
+   
+            FilterDefinition<BsonDocument> loginUserFilter = Builders<BsonDocument>.Filter.Eq("_id", username);
+            
+            long count = loginUserCollection.Find(loginUserFilter).Count();
+            bool valid = true;
+            if (count > 0)
+            {
+                BsonDocument returningUser = loginUserCollection.Find(loginUserFilter).First();
+                LoginUser grabbedUser = BsonSerializer.Deserialize<LoginUser>(returningUser.ToJson());
+                Console.WriteLine("Grabbed User: " + grabbedUser.UserName);
+                valid = true;
+                if (grabbedUser.HashedPassword.Equals(password))
+                {
+                    valid = true;
+                }
+                else
+                {
+                    Console.WriteLine("Passwords did not match! ");
+                    valid = false;
+                    return valid;
+                }
+            }
+            else
+            {
+                valid = false;
+                return valid;
+            }
+            return valid;
         }
-       
+
         public File GetFileFromCollection(string guid)
         {
             IMongoCollection<BsonDocument> fileCollection = GetCollection(FILE_COLLECTION);
@@ -39,11 +68,6 @@ namespace MongoDBStandard.CRUD_COMMANDS
             return deletingFile;
         }
 
-    
-        private void UploadFileForAUser()
-        {
-            throw new NotImplementedException();
-        }
 
         public List<File> GetAccountListOFFiles(string username)
         {
@@ -66,7 +90,7 @@ namespace MongoDBStandard.CRUD_COMMANDS
 
             foreach (File eachFile in listOfFiles)
             {
-                if(eachFile.GUID == fileGUID)
+                if (eachFile.GUID == fileGUID)
                 {
                     Console.WriteLine("File matched: " + eachFile.GUID);
                     users = eachFile.Users;
@@ -79,31 +103,110 @@ namespace MongoDBStandard.CRUD_COMMANDS
             return users;
         }
 
-        private void RemoveUserFromAccountFileUsers(string removingUsername, string fileGuid, Dictionary<string, Permission> remainingUsers)
+        public Dictionary<string, Permission> GetUpdatedUserDictionary(string removingUsername, string fileGuid, Dictionary<string, Permission> remainingUsers)
+        {
+            Dictionary<string, Permission> updatedUsers = null;
+            foreach (KeyValuePair<string, Permission> entry in remainingUsers)
+            {
+                Console.WriteLine("Remaining User to remove : " + removingUsername + " from: " + entry.Key);
+                updatedUsers = new Dictionary<string, Permission>();
+                Dictionary<string, Permission> users = GetAccountListOfUsersOnAFile(entry.Key, fileGuid);
+                foreach (KeyValuePair<string, Permission> eachUser in users)
+                {
+                    string currentUser = eachUser.Key;
+                    Permission permissionType = eachUser.Value;
+                    UserAccount userAccount = GetUser(currentUser);
+                    UserAccount removingAccount = GetUser(removingUsername);
+                    if (userAccount.UserName.Equals(removingAccount.UserName))
+                    {
+                        //dont do anything 
+                    }
+                    else
+                    {
+                        updatedUsers.Add(userAccount.UserName, permissionType);
+                    }
+
+                }
+            }
+            return updatedUsers;
+        }
+
+        public void RemoveUserFromAccountFileUsers(string removingUsername, string fileGuid, Dictionary<string, Permission> remainingUsers)
         {
             Console.WriteLine("Username to be removed from all file collections in account: " + removingUsername);
             Console.WriteLine("File that is going to be removed from all file collections in account: " + fileGuid);
 
+
+            List<File> newListOfFiles = null;
+            IMongoCollection<BsonDocument> userCollection = GetCollection(USER_COLLECTION);
+            Dictionary<string, Permission> updatedUsers = GetUpdatedUserDictionary(removingUsername, fileGuid, remainingUsers);
             foreach (KeyValuePair<string, Permission> entry in remainingUsers)
             {
-                Console.WriteLine("Remaining User to remove : " + removingUsername + " from: " + entry.Key);
+                newListOfFiles = new List<File>();
+                List<File> getListOfFiles = GetAccountListOFFiles(entry.Key);
+                foreach (File eachFile in getListOfFiles)
+                {
+                    if (eachFile.GUID.Equals(fileGuid))
+                    {
+                        File newFile = eachFile;
+                        newFile.Users = updatedUsers;
+                        newListOfFiles.Add(newFile);
+                    }
+                    else
+                    {
+                        newListOfFiles.Add(eachFile);
+                    }
+                }
+                //Make a new Account
+                UserAccount newAccount = GetUser(entry.Key);
+                //Delete the old account
+                userCollection.DeleteOne(newAccount.ToBsonDocument());
+                //update listOfFiles to the newListOfFiles for new account 
+                newAccount.ListOfFiles = newListOfFiles;
+                //insert account to collection
 
-                ///Get Users List From Account based on a username
-                ///Loop over this list and make a new list that doesn't have the removing username
-                ///Update that to the user. 
-                ///---make a new user and update their userlist
-                ///Delete the old one and reinsert the new one
-
-
+                userCollection.InsertOne(newAccount.ToBsonDocument());
             }
+
+
+            //foreach (KeyValuePair<string, Permission> entry in remainingUsers)
+            //{
+            //    Console.WriteLine("Remaining User to remove : " + removingUsername + " from: " + entry.Key);
+            //    Dictionary<string, Permission> updatedUsers = new Dictionary<string, Permission>();
+            //    Dictionary<string, Permission> users = GetAccountListOfUsersOnAFile(entry.Key, fileGuid);
+            //    foreach (KeyValuePair<string, Permission> eachUser in users)
+            //    {
+            //        string currentUser = eachUser.Key;
+            //        Permission permissionType = eachUser.Value;
+            //        UserAccount userAccount = GetUser(currentUser);
+            //        UserAccount removingAccount = GetUser(removingUsername);
+            //        if(userAccount.UserName.Equals(removingAccount.UserName))
+            //        {
+            //            //dont do anything 
+            //        } else
+            //        {
+            //            updatedUsers.Add(userAccount.UserName, permissionType);
+            //        }
+
+            //    }
+            //}
+            //IMongoCollection<BsonDocument> userCollection = GetCollection(USER_COLLECTION);
+            //foreach (KeyValuePair<string, Permission> userRemaining in remainingUsers)
+            //{
+            //    //for each remaining user I want to update their user dictionary
+
+            //    //UserAccount updatedAccount = GetUser(userRemaining.Key);
+            //    //userCollection.DeleteOne(updatedAccount.ToBsonDocument());
+            //    //updatedAccount.ListOfFiles = listOfFiles;
+            //    //userCollection.InsertOne(updatedAccount.ToBsonDocument());
+            //}
 
             //get user collection
             //get 
 
         }
 
-   
-        
+
         private void AddNoteInNoteCollections()
         {
             throw new NotImplementedException();
@@ -113,7 +216,6 @@ namespace MongoDBStandard.CRUD_COMMANDS
         {
             throw new NotImplementedException();
         }
-
 
         private File DeleteFileFromFileCollection(string guid)
         {
@@ -127,7 +229,7 @@ namespace MongoDBStandard.CRUD_COMMANDS
 
         public void DeleteFile(string guid)
         {
-           
+
             File deletingFile = GetFileFromCollection(guid);
             foreach (KeyValuePair<string, Permission> entry in deletingFile.Users)
             {
@@ -137,7 +239,7 @@ namespace MongoDBStandard.CRUD_COMMANDS
                 RemoveFilesFromUserAccounts(deletingFile, currentAccount);
             }
             DeleteFileFromFileCollection(guid);
-        
+
         }
 
         public void RemoveFilesFromUserAccounts(File file, string username)
@@ -208,9 +310,9 @@ namespace MongoDBStandard.CRUD_COMMANDS
 
                 //foreach (KeyValuePair<string, Permission> entry2 in remainingUsers)
                 //{
-                    //string currentDeleteAccount = entry2.Key;
-                    
-               // }
+                //string currentDeleteAccount = entry2.Key;
+
+                // }
 
             }
             RemoveUserFromAccountFileUsers(toBeRemovedUsername, file.GUID, remainingUsers);
@@ -286,8 +388,6 @@ namespace MongoDBStandard.CRUD_COMMANDS
             Console.WriteLine("End ");
 
         }
-
-
 
         private void AddFilesToUsersHelper(File file, string username)
         {
@@ -427,58 +527,26 @@ namespace MongoDBStandard.CRUD_COMMANDS
 
         public void UploadFile(File file)
         {
-            //IMongoCollection<BsonDocument> fileCollection = GetCollection(FILE_COLLECTION);
-            //FilterDefinition<BsonDocument> getFileFilter = Builders<BsonDocument>.Filter.Eq("GUID", file.GUID);
-            //Dictionary<string, Permission> fileUsers = new Dictionary<string, Permission>();
-
-
-            //foreach (KeyValuePair<string, Permission> entry in file.Users)
-            //{
-            //    string currentAccount = entry.Key;
-            //    Permission currentPermission = entry.Value;
-            //    fileUsers.Add(currentAccount, currentPermission);
-
-            //}
-
-            //byte[] fileContent = file.Content;
-            //string guid = file.GUID;
-            //string extension = file.Extension;
-            //string fileName = file.Name;
-
-            //string guidDoc = BsonSerializer.Deserialize<string>(guid.ToJson());
-            //string extensionDoc = BsonSerializer.Deserialize<string>(extension.ToJson());
-            //string nameDoc = BsonSerializer.Deserialize<string>(fileName.ToJson());
-
-            //Dictionary<UserAccount, Permission> users = new Dictionary<UserAccount, Permission>();
-            //BsonDocument bsonDoc = users.ToBsonDocument();
-            //byte[] content = new byte[10];
-            //;
-            //BsonDocument bFileFormat = new BsonDocument
-            //{
-            //  {"Users", fileUsers.ToBsonDocument()},
-            //  {"GUID", guidDoc},
-            //  {"Content", fileContent},
-            //  {"Extension", extensionDoc},
-            //  {"Name", nameDoc}
-            //};
-
             IMongoCollection<BsonDocument> fileCollection = GetCollection(FILE_COLLECTION);
             UploadFileInFileCollection(file);
             UpdateFileUsersInAccounts(file);
 
         }
 
-        public void CreateUser(UserAccount user)
+        public void CreateUser(UserAccount user,string hashedPassword, string salt)
         {
             BsonDocument bUserAccount = user.ToBsonDocument();
             IMongoCollection<BsonDocument> userCollection = GetCollection(USER_COLLECTION);
 
             userCollection.InsertOne(bUserAccount);
-        }
 
-        public void UpdateUser(UserAccount user)
-        {
-            throw new NotImplementedException();
+            LoginUser loginUser = new LoginUser();
+            loginUser.UserName = user.UserName;
+            loginUser.HashedPassword = hashedPassword;
+            loginUser.Salt = salt;
+            BsonDocument bLoginUser = loginUser.ToBsonDocument();
+            IMongoCollection<BsonDocument> loginUserCollection = GetCollection(LOGIN_COLLECTION);
+            loginUserCollection.InsertOne(bLoginUser);
         }
 
         public void CreateGoal(Goal goal, string username)
@@ -573,24 +641,18 @@ namespace MongoDBStandard.CRUD_COMMANDS
 
         public void UpdateFile(File file)
         {
-
             Dictionary<string, Permission> users = new Dictionary<string, Permission>();
             IMongoCollection<BsonDocument> userCollection = GetCollection(USER_COLLECTION);
             IMongoCollection<BsonDocument> fileCollection = GetCollection(FILE_COLLECTION);
             FilterDefinition<BsonDocument> deleteFileFilter = Builders<BsonDocument>.Filter.Eq("GUID", file.GUID);
 
-            BsonDocument fileFromCollection= fileCollection.Find(deleteFileFilter).First();
-            File fileToUpdate= BsonSerializer.Deserialize<File>(fileFromCollection.ToJson());
+            BsonDocument fileFromCollection = fileCollection.Find(deleteFileFilter).First();
+            File fileToUpdate = BsonSerializer.Deserialize<File>(fileFromCollection.ToJson());
             file.Users = fileToUpdate.Users;
             DeleteFile(fileToUpdate.GUID);
 
             fileCollection.InsertOne(file.ToBsonDocument());
-            ShareFile(file.GUID,file.Users);
-        }
-
-        public bool AuthenticateUser(string Username, string Password)
-        {
-            throw new NotImplementedException();
+            ShareFile(file.GUID, file.Users);
         }
 
         public void ShareFile(string guid, Dictionary<string, Permission> sharers)
@@ -627,7 +689,7 @@ namespace MongoDBStandard.CRUD_COMMANDS
                         f = BsonSerializer.Deserialize<File>(element.ToJson());
                         listOfFiles.Add(f);
                     }
-                   AddFilesToUsersHelper(sharingFile, currentAccount);
+                    AddFilesToUsersHelper(sharingFile, currentAccount);
                 }
                 else
                 {
@@ -636,7 +698,7 @@ namespace MongoDBStandard.CRUD_COMMANDS
                 }
             }
             sharingFile.Users = sharers;
-           fileCollection.InsertOne(sharingFile.ToBsonDocument());
+            fileCollection.InsertOne(sharingFile.ToBsonDocument());
         }
 
         public UserAccount GetUser(string userName)

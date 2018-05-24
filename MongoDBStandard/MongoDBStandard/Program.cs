@@ -172,6 +172,7 @@ namespace MongodbRND
             UserAccount userAccount = new UserAccount(goalsList, null, null, username, phoneNumber, email);
             UserAccount userAccount2 = new UserAccount(goalsList2, null, null, "Ankita", "415-584-4324", "AnkitaGoradia78@gmail.com");
             UserAccount userAccount3 = new UserAccount(goalsList2, null, null, "Nainesh", "415-465-4324", "NaineshGoradia87@gmail.com");
+            UserAccount userAccount4 = new UserAccount(goalsList2, null, null, "Natasha", "510-465-4324", "Natasha67@gmail.com");
 
             users.Add(userAccount.UserName, Permission.Edit);
             users.Add(userAccount2.UserName, Permission.Owner);
@@ -182,14 +183,17 @@ namespace MongodbRND
 
             //addingFile.Users = users;
             //cmd.GetUser("prvora89");
-            //cmd.CreateUser(userAccount);
-            //cmd.CreateUser(userAccount2);
-            //cmd.CreateUser(userAccount3);
-            //cmd.UploadFile(file);
+            //cmd.CreateUser(userAccount, "HashedPassword", "Salt");
+            //cmd.CreateUser(userAccount2,"HashedPassword", "Salt");
+            //cmd.CreateUser(userAccount3, "HashedPassword", "Salt");
+
+            Console.WriteLine("User Valid: " + cmd.AuthenticateUser("prvo", "Hashrd"));
+            //cmd.UploadFile(file2);
             //cmd.CreateGoal(addingGoal, "prvora89");
             //cmd.MarkGoalAsComplete("1", "prvora89");
             //MongoCommands.GetUser(username);
-            cmd.GetAccountListOfUsersOnAFile("Ankita", "13");
+            //cmd.GetAccountListOfUsersOnAFile("Ankita", "13");
+
             //cmd.CreateNote(note);
 
             //cmd.GetFilePreviews("prvora89");
@@ -198,7 +202,10 @@ namespace MongodbRND
             //Dictionary<string, Permission> remainingUsers = new Dictionary<string, Permission>();
             //remainingUsers.Add(userAccount.UserName, Permission.Edit);
             //remainingUsers.Add(userAccount3.UserName, Permission.Edit);
-            // cmd.RemoveFilesFromUserAccounts(file2, "Ankita");
+
+            //cmd.RemoveUserFromAccountFileUsers("Ankita", "13", remainingUsers);
+
+            // cmd.RemoveFilesFromUserAccounts(addingFile, "prvora89");
             //  cmd.GetUsersListOFFiles("Nainesh");
             //cmd.RemoveNotesFromUserAccounts(note, "prvora89");
             //cmd.DeleteFile("13");
