@@ -185,14 +185,21 @@ namespace MongodbRND
             //cmd.CreateUser(userAccount);
             //cmd.CreateUser(userAccount2);
             //cmd.CreateUser(userAccount3);
+            //cmd.UploadFile(file);
             //cmd.CreateGoal(addingGoal, "prvora89");
             //cmd.MarkGoalAsComplete("1", "prvora89");
             //MongoCommands.GetUser(username);
+            cmd.GetAccountListOfUsersOnAFile("Ankita", "13");
             //cmd.CreateNote(note);
-            //cmd.UploadFile(file2);
+
             //cmd.GetFilePreviews("prvora89");
             //cmd.DeleteFile("675");
-            //cmd.RemoveFilesFromUserAccounts(file, "Ankita");
+
+            //Dictionary<string, Permission> remainingUsers = new Dictionary<string, Permission>();
+            //remainingUsers.Add(userAccount.UserName, Permission.Edit);
+            //remainingUsers.Add(userAccount3.UserName, Permission.Edit);
+            // cmd.RemoveFilesFromUserAccounts(file2, "Ankita");
+            //  cmd.GetUsersListOFFiles("Nainesh");
             //cmd.RemoveNotesFromUserAccounts(note, "prvora89");
             //cmd.DeleteFile("13");
 
