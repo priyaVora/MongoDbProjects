@@ -11,6 +11,7 @@ using MongoDBStandard.models;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.IO;
 
+
 namespace MongoDBStandard.CRUD_COMMANDS
 {
     public class MongoCommands
@@ -21,14 +22,15 @@ namespace MongoDBStandard.CRUD_COMMANDS
         const string LOGIN_COLLECTION = "Login";
 
         const string MONGO_CONNECTION_STRING = "mongodb://40.114.29.68:27017";
+        // const string MONGO_CONNECTION_STRING = "mongodb://104.42.173.109:27017";
         const string MONGO_DATABASE = "Mongo_Study_App";
 
         public bool AuthenticateUser(string username, string password)
         {
             IMongoCollection<BsonDocument> loginUserCollection = GetCollection(LOGIN_COLLECTION);
-   
+
             FilterDefinition<BsonDocument> loginUserFilter = Builders<BsonDocument>.Filter.Eq("_id", username);
-            
+
             long count = loginUserCollection.Find(loginUserFilter).Count();
             bool valid = true;
             if (count > 0)
@@ -324,11 +326,11 @@ namespace MongoDBStandard.CRUD_COMMANDS
         public void DeleteNote(string guid)
         {
             IMongoCollection<BsonDocument> noteCollection = GetCollection(NOTE_COLLECTION);
-            FilterDefinition<BsonDocument> deleteNoteFilter = Builders<BsonDocument>.Filter.Eq("GUID", guid);
+            FilterDefinition<BsonDocument> deleteNoteFilter = Builders<BsonDocument>.Filter.Eq("_id", guid);
 
             BsonDocument note = noteCollection.Find(deleteNoteFilter).First();
             var owner = note["Owner"];
-            var noteGuid = note["GUID"].AsBsonValue;
+            var noteGuid = note["_id"].AsBsonValue;
             string guidDoc = BsonSerializer.Deserialize<string>(noteGuid.ToJson());
 
             // a.UserName = owner;
@@ -351,7 +353,7 @@ namespace MongoDBStandard.CRUD_COMMANDS
 
             UserAccount account = GetUser(note.Owner);
             IMongoCollection<BsonDocument> userCollection = GetCollection(USER_COLLECTION);
-            FilterDefinition<BsonDocument> getUserFilter = Builders<BsonDocument>.Filter.Eq("UserName", note.Owner);
+            FilterDefinition<BsonDocument> getUserFilter = Builders<BsonDocument>.Filter.Eq("_id", note.Owner);
             BsonDocument user = userCollection.Find(getUserFilter).First();
 
 
@@ -393,7 +395,7 @@ namespace MongoDBStandard.CRUD_COMMANDS
         {
             UserAccount account = GetUser(username);
             IMongoCollection<BsonDocument> userCollection = GetCollection(USER_COLLECTION);
-            FilterDefinition<BsonDocument> getUserFilter = Builders<BsonDocument>.Filter.Eq("UserName", username);
+            FilterDefinition<BsonDocument> getUserFilter = Builders<BsonDocument>.Filter.Eq("_id", username);
             BsonDocument user = userCollection.Find(getUserFilter).First();
 
             Console.WriteLine(username + ": file added.");
@@ -435,11 +437,57 @@ namespace MongoDBStandard.CRUD_COMMANDS
 
         }
 
+        private void AddNoteToUsersHelper(Note notefile, string username)
+        {
+            UserAccount account = GetUser(username);
+            IMongoCollection<BsonDocument> userCollection = GetCollection(USER_COLLECTION);
+            FilterDefinition<BsonDocument> getUserFilter = Builders<BsonDocument>.Filter.Eq("_id", username);
+            BsonDocument user = userCollection.Find(getUserFilter).First();
+
+       
+
+            BsonType typeOfFiles = user["ListOfNotes"].BsonType;
+            List<Note> listOfNotes = new List<Note>();
+            if (typeOfFiles != BsonType.Null)
+            {
+                var userFilesList = user["ListOfNotes"].AsBsonArray;
+                Console.WriteLine("Notes List is not null");
+
+                foreach (var element in userFilesList)
+                {
+                    Note f = null;
+                    f = BsonSerializer.Deserialize<Note>(element.ToJson());
+                    if (f.GUID != notefile.GUID)
+                    {
+
+                        listOfNotes.Add(f);
+
+                    }
+                    else
+                    {
+                        Console.WriteLine("Note already exist in the collection.");
+                    }
+                }
+                listOfNotes.Add(notefile);
+            }
+            else
+            {
+                listOfNotes.Add(notefile);
+            }
+
+            UserAccount updatedAccount = GetUser(username);
+            userCollection.DeleteOne(updatedAccount.ToBsonDocument());
+            updatedAccount.ListOfNotes = listOfNotes;
+            userCollection.InsertOne(updatedAccount.ToBsonDocument());
+            Console.WriteLine("End ");
+
+        }
+
         public void RemoveNotesFromUserAccounts(Note note, string username)
         {
             UserAccount account = GetUser(username);
             IMongoCollection<BsonDocument> userCollection = GetCollection(USER_COLLECTION);
-            FilterDefinition<BsonDocument> getUserFilter = Builders<BsonDocument>.Filter.Eq("UserName", username);
+            FilterDefinition<BsonDocument> getUserFilter = Builders<BsonDocument>.Filter.Eq("_id", username);
             BsonDocument user = userCollection.Find(getUserFilter).First();
 
             BsonType typeOfNotes = user["ListOfNotes"].BsonType;
@@ -490,12 +538,15 @@ namespace MongoDBStandard.CRUD_COMMANDS
             FilterDefinition<BsonDocument> getFileFilter = Builders<BsonDocument>.Filter.Eq("GUID", file.GUID);
             Dictionary<string, Permission> fileUsers = new Dictionary<string, Permission>();
 
-
-            foreach (KeyValuePair<string, Permission> entry in file.Users)
+            if (file.Users != null)
             {
-                string currentAccount = entry.Key;
-                Permission currentPermission = entry.Value;
-                fileUsers.Add(currentAccount, currentPermission);
+                foreach (KeyValuePair<string, Permission> entry in file.Users)
+                {
+                    string currentAccount = entry.Key;
+                    Permission currentPermission = entry.Value;
+                    fileUsers.Add(currentAccount, currentPermission);
+
+                }
 
             }
 
@@ -511,8 +562,21 @@ namespace MongoDBStandard.CRUD_COMMANDS
             Dictionary<UserAccount, Permission> users = new Dictionary<UserAccount, Permission>();
             BsonDocument bsonDoc = users.ToBsonDocument();
             byte[] content = new byte[10];
-            ;
-            BsonDocument bFileFormat = new BsonDocument
+            ; BsonDocument bFileFormat;
+            if (file.Users == null)
+            {
+                bFileFormat = new BsonDocument
+            {
+              {"Users", new Dictionary<string, Permission>().ToBsonDocument()},
+              {"GUID", guidDoc},
+              {"Content", fileContent},
+              {"Extension", extensionDoc},
+              {"Name", nameDoc}
+            };
+            }
+            else
+            {
+                bFileFormat = new BsonDocument
             {
               {"Users", fileUsers.ToBsonDocument()},
               {"GUID", guidDoc},
@@ -520,6 +584,8 @@ namespace MongoDBStandard.CRUD_COMMANDS
               {"Extension", extensionDoc},
               {"Name", nameDoc}
             };
+            }
+
 
             fileCollection.InsertOne(bFileFormat);
             return bFileFormat;
@@ -533,7 +599,7 @@ namespace MongoDBStandard.CRUD_COMMANDS
 
         }
 
-        public void CreateUser(UserAccount user,string hashedPassword, string salt)
+        public void CreateUser(UserAccount user, string hashedPassword, string salt)
         {
             BsonDocument bUserAccount = user.ToBsonDocument();
             IMongoCollection<BsonDocument> userCollection = GetCollection(USER_COLLECTION);
@@ -548,6 +614,41 @@ namespace MongoDBStandard.CRUD_COMMANDS
             IMongoCollection<BsonDocument> loginUserCollection = GetCollection(LOGIN_COLLECTION);
             loginUserCollection.InsertOne(bLoginUser);
         }
+
+        public LoginUser GetLoginUser(string username)
+        {
+            IMongoCollection<BsonDocument> loginUserCollection = GetCollection(LOGIN_COLLECTION);
+
+            FilterDefinition<BsonDocument> loginUserFilter = Builders<BsonDocument>.Filter.Eq("_id", username);
+
+            long count = loginUserCollection.Find(loginUserFilter).Count();
+            //IMongoCollection<BsonDocument> fileCollection = GetCollection(FILE_COLLECTION);
+            //FilterDefinition<BsonDocument> deleteFileFilter = Builders<BsonDocument>.Filter.Eq("GUID", guid);
+
+
+            if (count > 0)
+            {
+                BsonDocument loginUser = loginUserCollection.Find(loginUserFilter).First();
+                LoginUser grabbedUser = BsonSerializer.Deserialize<LoginUser>(loginUser.ToJson());
+                return grabbedUser;
+            }
+            return null;
+        }
+
+
+        public void AddPoints(string username, int point)
+        {
+            //get user
+            UserAccount user = GetUser(username);
+            //Get their points
+
+            //update their points
+
+            //delete the old user account 
+            //insert the new updated user inside the user collecction 
+        }
+
+
 
         public void CreateGoal(Goal goal, string username)
 
@@ -655,6 +756,82 @@ namespace MongoDBStandard.CRUD_COMMANDS
             ShareFile(file.GUID, file.Users);
         }
 
+        public void UpdateNote(Note note)
+        {
+
+            Dictionary<string, Permission> users = new Dictionary<string, Permission>();
+            IMongoCollection<BsonDocument> userCollection = GetCollection(USER_COLLECTION);
+            IMongoCollection<BsonDocument> noteCollection = GetCollection(NOTE_COLLECTION);
+            FilterDefinition<BsonDocument> deleteNoteFilter = Builders<BsonDocument>.Filter.Eq("_id", note.GUID);
+
+            BsonDocument noteFromCollection = noteCollection.Find(deleteNoteFilter).First();
+            Note noteToUpdate = BsonSerializer.Deserialize<Note>(noteFromCollection.ToJson());
+            note.Owner = noteToUpdate.Owner;
+            //file.Users = fileToUpdate.Users;
+            //DeleteFile(noteToUpdate.GUID);
+            DeleteNote(noteToUpdate.GUID);
+            noteCollection.InsertOne(note.ToBsonDocument());
+            users.Add(note.Owner, Permission.Owner);
+            ShareNote(note.GUID, users);
+
+        }
+
+
+
+
+        public void ShareNote(string guid, Dictionary<string, Permission> sharers)
+        {
+            Dictionary<string, Permission> users = new Dictionary<string, Permission>();
+            IMongoCollection<BsonDocument> userCollection = GetCollection(USER_COLLECTION);
+            IMongoCollection<BsonDocument> noteCollection = GetCollection(NOTE_COLLECTION);
+            FilterDefinition<BsonDocument> deleteFileFilter = Builders<BsonDocument>.Filter.Eq("_id", guid);
+
+            BsonDocument note = noteCollection.Find(deleteFileFilter).First();
+            Note sharingNote = BsonSerializer.Deserialize<Note>(note.ToJson());
+            DeleteNote(sharingNote.GUID);
+
+            string currentAccount = null;
+            foreach (KeyValuePair<string, Permission> entry in sharers)
+            {
+                sharingNote.Owner = GetUser(entry.Key).UserName;
+                currentAccount = entry.Key;
+                Permission currentPermission = entry.Value;
+                Console.WriteLine("Username to Share to: " + currentAccount);
+                Console.WriteLine("Permission Type for User: " + currentPermission);
+
+
+                FilterDefinition<BsonDocument> getUserFilter = Builders<BsonDocument>.Filter.Eq("_id", currentAccount);
+                BsonDocument user = userCollection.Find(getUserFilter).First();
+
+                BsonType typeOfFile = user["ListOfNotes"].BsonType;
+                List<Note> listOfNote = new List<Note>();
+                if (typeOfFile != BsonType.Null)
+                {
+                    var userFileList = user["ListOfNotes"].AsBsonArray;
+
+                    foreach (var element in userFileList)
+                    {
+                        Note f = null;
+                        f = BsonSerializer.Deserialize<Note>(element.ToJson());
+                        listOfNote.Add(f);
+                    }
+                    AddNoteToUsersHelper(sharingNote, currentAccount);
+                }
+                else
+                {
+                    AddNoteToUsersHelper(sharingNote, currentAccount);
+                   
+                }
+            }
+            sharingNote.Owner = GetUser(currentAccount).UserName;
+            noteCollection.InsertOne(sharingNote.ToBsonDocument());
+        }
+
+
+
+
+
+
         public void ShareFile(string guid, Dictionary<string, Permission> sharers)
         {
             Dictionary<string, Permission> users = new Dictionary<string, Permission>();
@@ -705,7 +882,7 @@ namespace MongoDBStandard.CRUD_COMMANDS
         {
             Console.WriteLine("Started method..." + " " + userName);
             IMongoCollection<BsonDocument> userCollection = GetCollection(USER_COLLECTION);
-            FilterDefinition<BsonDocument> getUserFilter = Builders<BsonDocument>.Filter.Eq("UserName", userName);
+            FilterDefinition<BsonDocument> getUserFilter = Builders<BsonDocument>.Filter.Eq("_id", userName);
             BsonDocument user = userCollection.Find(getUserFilter).First();
             BsonType typeOfGoal = user["ListOfGoals"].AsBsonValue.BsonType;
 
@@ -735,7 +912,7 @@ namespace MongoDBStandard.CRUD_COMMANDS
             }
             var userFilesList = user["ListOfFiles"].AsBsonValue;
             var userNotesList = user["ListOfNotes"].AsBsonValue;
-            var username = user["UserName"].AsBsonValue;
+            var username = user["_id"].AsBsonValue;
             var phoneNumber = user["PhoneNumber"].AsBsonValue;
             var email = user["Email"].AsBsonValue;
             List<File> listOfFiles = BsonSerializer.Deserialize<List<File>>(userFilesList.ToJson());
@@ -748,9 +925,57 @@ namespace MongoDBStandard.CRUD_COMMANDS
             return userAccount;
         }
 
-        public IMongoCollection<BsonDocument> GetUpcomingGoals(string username)
+
+
+        private bool checkIfGoalIsUpcoming(DateTime deadline)
         {
-            throw new NotImplementedException();
+            if (deadline < DateTime.Now)
+            {
+                return false;
+            }
+            else if (deadline == DateTime.Now)
+            {
+                return true;
+            }
+            return true;
+        }
+
+        public List<Goal> GetUpcomingGoals(string username, DateTime dateTime)
+        {
+            UserAccount grabbedUser = GetUser(username);
+            Console.WriteLine("Grabbed User: " + grabbedUser.UserName);
+            List<Goal> listOfGoals = grabbedUser.ListOfGoals;
+            List<Goal> upcomingGoals = new List<Goal>();
+
+            if (listOfGoals != null)
+            {
+                if (listOfGoals.Count != 0)
+                {
+                    Console.WriteLine("Goals exist.");
+                    Console.WriteLine("Current Date: " + dateTime.ToString());
+                    foreach (Goal eachGoal in listOfGoals)
+                    {
+                        DateTime goalDeadline = eachGoal.Deadline;
+                        bool validUpcomingGoal = checkIfGoalIsUpcoming(goalDeadline);
+                        Console.WriteLine("Goal is Upcoming: " + eachGoal.TaskName + " --: " + validUpcomingGoal);
+
+                        if (validUpcomingGoal == true)
+                        {
+                            upcomingGoals.Add(eachGoal);
+                        }
+                    }
+                }
+                else
+                {
+                    return new List<Goal>();
+                }
+            }
+            else
+            {
+                Console.WriteLine("List is null");
+                return null;
+            }
+            return upcomingGoals;
         }
 
         public List<FileMini> GetFilePreviews(string username)

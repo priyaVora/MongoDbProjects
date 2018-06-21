@@ -3,26 +3,34 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using MongoDB.Bson.Serialization.Attributes;
+
 
 namespace MongoDBStandard.models
 {
     public class UserAccount
     {
-        public UserAccount(List<Goal> listOfGoals = null, List<Note> listOfNotes = null, List<File> listOfFiles = null, string userName = null, string phoneNumber = null, string email = null)
+        private string usernameStr;
+        private string phoneNumberStr;
+        private string emailStr;
+
+        public UserAccount(List<Goal> listOfGoals, List<Note> listOfNotes, List<File> listOfFiles, string usernameStr, string phoneNumberStr, string emailStr)
         {
             ListOfGoals = listOfGoals;
             ListOfNotes = listOfNotes;
             ListOfFiles = listOfFiles;
-            UserName = userName;
-            PhoneNumber = phoneNumber;
-            Email = email;
+            UserName = usernameStr;
+            PhoneNumber = phoneNumberStr;
+            Email = emailStr;
         }
 
-        public List<Goal> ListOfGoals { get; set; }
-        public List<Note> ListOfNotes { get; set; }
-        public List<File> ListOfFiles { get; set; }
+        [BsonId]
         public string UserName { get; set; }
         public string PhoneNumber { get; set; }
         public string Email { get; set; }
+        public int Points { get; set; }
+        public List<Goal> ListOfGoals { get; set; }
+        public List<Note> ListOfNotes { get; set; }
+        public List<File> ListOfFiles { get; set; }
     }
 }

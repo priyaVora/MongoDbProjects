@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MongoDB.Bson.Serialization.Attributes;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -8,17 +9,23 @@ namespace MongoDBStandard.models
 {
     public class Note
     {
+
+        [BsonId]
+        public string GUID { get; set; }
+        public string Title { get; set; }
+        public string Content { get; set; }
+        public string Owner { get; set; }
+
         public Note(string owner, string title = null, string content = null, string guid = null)
         {
-            Title = title;
             Owner = owner;
+            Title = title;
             Content = content;
             GUID = guid;
         }
 
-        public string Title { get; set; }
-        public string Content { get; set; }
-        public string GUID { get; set; }
-        public string Owner { get; set; }
+        public Note() { }
+
+        public static implicit operator NoteMini(Note n) => new NoteMini(n.Title, n.GUID);
     }
 }
